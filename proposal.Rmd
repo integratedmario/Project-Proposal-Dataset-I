@@ -1,0 +1,94 @@
+---
+title: "Project Proposal"
+author: "Mario Alvarez"
+date: "3/21/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r packages}
+library(tidyverse)
+library(infer)
+library(dplyr)
+```
+
+```{r data-cleanup-labor}
+labordats <- read.csv(file = 'data/LaborNEconomy.csv')%>%
+  select(-T16, -X.4)%>%
+  slice(2:n())
+
+val <- as.numeric(labordats$X.2)
+
+labordats <- labordats%>%
+  select(-X.2)%>%
+  mutate(X.5 = val)
+
+names(labordats)[names(labordats) == "X"] <- "Year"
+names(labordats)[names(labordats) == "X.1"] <- "Statistic"
+names(labordats)[names(labordats) == "X.5"] <- "Value"
+names(labordats)[names(labordats) == "X.3"] <- "Type"
+names(labordats)[names(labordats) == 
+                   "Labour.force.participation.and.unemployment"] <- "Region"
+
+
+view(labordats)
+```
+
+```{r data-cleanup-govt}
+womengovt <- read.csv(file = 'data/WomenInGovt.csv')%>%
+  slice(2:n())%>%
+  select(-X.1, -X.2, -X.3, -X.5, -X.6, -T04)
+
+  names(womengovt)[names(womengovt) == "X"] <- "Year"
+  names(womengovt)[names(womengovt) == "X.4"] <- "Proportion of Women in Govt"
+  names(womengovt)[names(womengovt) == 
+                     "Proportion.of.seats.held.by.women.in.national.parliament"] <- "Region"
+laborngovt <- right_join(labordats, womengovt)
+```
+
+```{r data-cleanup-joined}
+prop <- as.numeric(laborngovt$"Proportion of Women in Govt")
+laborngovt <- laborngovt%>%
+  mutate("PropOfWomen" = prop)%>%
+  select(-"Proportion of Women in Govt")%>%
+  view()
+```
+
+
+
+```{r women-particip, fig.width = 9, fig.height = 8, eval = FALSE}
+laborngovt %>%
+  filter(Statistic == "Labour force participation - Female", Year == "2020")%>%
+  slice(1:22)%>%
+  ggplot(mapping = aes(x = Region, y = Value))+
+  geom_bar(stat = "identity", fill = "#521173")+
+  coord_flip()+
+  scale_y_continuous(limits = c(0,100))+
+  scale_x_discrete(limits = rev)+
+  labs(title = "Labor force participation of women around the world",
+       subtitle = "By region", x = "Region",
+       y = "Labor force participation rate (%)")
+```
+
+
+```{r particip-versus-prop}
+laborngovt%>%
+  filter(Year == "2020", Statistic == "Labour force participation - Female")%>%
+  ggplot(mapping = aes(x = PropOfWomen, y = Value))+
+  geom_point()+
+  geom_smooth(se = FALSE)+
+  scale_y_continuous(limits = c(0,100))+
+  scale_x_continuous(limits = c(0,100))+
+  labs(title = "Labor force participation of women vs. their political representation",
+       x = "Propotion of women in legislature (%)",
+       y= "Labor force participation of women (%)")
+```
+
+
+```{r correlations}
+womenparticip <- laborngovt %>%
+  filter(Year == "2020", Statistic == "Labour force participation - Female")%>%
+  select(Value, PropOfWomen)
+  cor.test(womenparticip$PropOfWomen, womenparticip$Value, method = "spearman")
+```
