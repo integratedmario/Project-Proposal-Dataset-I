@@ -3,8 +3,8 @@ title: "Project Proposal"
 author: "Mario Alvarez"
 date: "3/21/2021"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r packages}
@@ -26,7 +26,7 @@ labordats <- labordats%>%
 
 names(labordats)[names(labordats) == "X"] <- "Year"
 names(labordats)[names(labordats) == "X.1"] <- "Statistic"
-names(labordats)[names(labordats) == "X.5"] <- "Value"
+names(labordats)[names(labordats) == "X.5"] <- "Rates"
 names(labordats)[names(labordats) == "X.3"] <- "Type"
 names(labordats)[names(labordats) == 
                    "Labour.force.participation.and.unemployment"] <- "Region"
@@ -47,21 +47,47 @@ womengovt <- read.csv(file = 'data/WomenInGovt.csv')%>%
 laborngovt <- right_join(labordats, womengovt)
 ```
 
+```{r data-cleanup-edu}
+womenedu <- read.csv(file = 'data/WomenEdu.csv')%>%
+  slice(2:n())%>%
+  select(-X.3, -X.4, -T05)
+
+  names(womenedu)[names(womenedu) == "X"] <- "Year"
+  names(womenedu)[names(womenedu) == "X.1"] <- "EducationLevel"
+  names(womenedu)[names(womenedu) == "X.2"] <- "Gender Ratio Temp"
+  names(womenedu)[names(womenedu) == 
+                     "Ratio.of.girls.to.boys.in.primary..secondary.and.tertiary.education"] <- "Region"
+
+ratiov <- as.numeric(womenedu$"Gender Ratio Temp")
+
+womenedu <- womenedu %>%
+  mutate(GenderRatio = ratiov)%>%
+  select(-"Gender Ratio Temp")
+```
+
+
 ```{r data-cleanup-joined}
 prop <- as.numeric(laborngovt$"Proportion of Women in Govt")
 laborngovt <- laborngovt%>%
   mutate("PropOfWomen" = prop)%>%
-  select(-"Proportion of Women in Govt")%>%
+  select(-"Proportion of Women in Govt")
+
+laborgender <- right_join(laborngovt, womenedu)%>%
   view()
+```
+```{r dataset-sharpener}
+laborgender %>%
+  filter(EducationLevel == "Ratio of girls to boys in tertiary education",
+         Year == "2015")
 ```
 
 
 
-```{r women-particip, fig.width = 9, fig.height = 8, eval = FALSE}
+```{r women-particip, fig.width = 9, fig.height = 8}
 laborngovt %>%
-  filter(Statistic == "Labour force participation - Female", Year == "2020")%>%
+  filter(Statistic == "Labour force participation - Female", Year == "2015")%>%
   slice(1:22)%>%
-  ggplot(mapping = aes(x = Region, y = Value))+
+  ggplot(mapping = aes(x = Region, y = Rates))+
   geom_bar(stat = "identity", fill = "#521173")+
   coord_flip()+
   scale_y_continuous(limits = c(0,100))+
@@ -73,22 +99,34 @@ laborngovt %>%
 
 
 ```{r particip-versus-prop}
-laborngovt%>%
-  filter(Year == "2020", Statistic == "Labour force participation - Female")%>%
-  ggplot(mapping = aes(x = PropOfWomen, y = Value))+
+laborgender%>%
+  filter(Year == "2015", Statistic == "Labour force participation - Female",
+         EducationLevel == "Ratio of girls to boys in tertiary education")%>%
+  ggplot(mapping = aes(x = GenderRatio, y = Rates))+
   geom_point()+
   geom_smooth(se = FALSE)+
   scale_y_continuous(limits = c(0,100))+
-  scale_x_continuous(limits = c(0,100))+
-  labs(title = "Labor force participation of women vs. their political representation",
-       x = "Propotion of women in legislature (%)",
+  scale_x_continuous(limits = c(0,2))+
+  labs(title = "Labor force participation of women vs. their educational opportunities",
+       subtitle = "Without Qatar",
+       x = "Ratio of women to men in tertiary education",
        y= "Labor force participation of women (%)")
+```
+```{r only-labor}
+laborngovt%>%
+  filter(Year == "2015", 
+        Statistic == "Labour force participation - Female")%>%
+  slice(23:n())%>%
+  ggplot(mapping = aes(x = Rates))+
+  geom_density(size = 2, fill = "black", alpha = 0.4)+
+  scale_x_continuous(limits = c(0,100))
 ```
 
 
 ```{r correlations}
-womenparticip <- laborngovt %>%
-  filter(Year == "2020", Statistic == "Labour force participation - Female")%>%
-  select(Value, PropOfWomen)
-  cor.test(womenparticip$PropOfWomen, womenparticip$Value, method = "spearman")
+womenedu2 <- laborgender %>%
+  filter(Year == "2015", Statistic == "Labour force participation - Female",
+         EducationLevel == "Ratio of girls to boys in secondary education")%>%
+  select(GenderRatio, Rates)
+  cor.test(womenedu2$GenderRatio, womenedu2$Rates, method = "spearman")
 ```
