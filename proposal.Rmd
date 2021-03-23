@@ -31,8 +31,6 @@ names(labordats)[names(labordats) == "X.3"] <- "Type"
 names(labordats)[names(labordats) == 
                    "Labour.force.participation.and.unemployment"] <- "Region"
 
-
-view(labordats)
 ```
 
 ```{r data-cleanup-govt}
@@ -90,30 +88,24 @@ laborngovt <- laborngovt%>%
   mutate("PropOfWomen" = prop)%>%
   select(-"Proportion of Women in Govt")
 
-laborgender <- right_join(laborngovt, womenedu)%>%
-  view()
+laborgender <- right_join(laborngovt, womenedu)
 ```
 
 ```{r final-data-cleanup}
 laborgender <- left_join(laborgender, genderineq)%>%
-  view()
-```
-
-```{r dataset-sharpener}
-laborgender <- laborgender%>%
-  filter(Statistic != "Unemployment rate - Total",
+   filter(Statistic != "Unemployment rate - Total",
          Statistic != "Unemployment rate - Male",
          Statistic != "Unemployment rate - Female")%>%
-  select(-Type)%>%
-  view()
+  select(-Type)
 ```
-
 
 
 ```{r women-particip, fig.width = 9, fig.height = 8}
 laborgender %>%
   filter(Statistic == "Labour force participation - Female", Year == "2015")%>%
-  slice(1:32)%>%
+  select(Region, Rates)%>%
+  unique()%>%
+  slice(1:11)%>%
   ggplot(mapping = aes(x = Region, y = Rates))+
   geom_bar(stat = "identity", fill = "#521173")+
   coord_flip()+
@@ -142,8 +134,10 @@ laborgender%>%
 ```{r only-labor}
 laborgender%>%
   filter(Year == "2015", 
-        Statistic == "Labour force participation - Female")%>%
-  slice(23:n())%>%
+        Statistic == "Labour force participation - Male")%>%
+  select(Region, Rates)%>%
+  distinct()%>%
+  slice(12:n())%>%
   ggplot(mapping = aes(x = Rates))+
   geom_density(size = 2, fill = "black", alpha = 0.4)+
   scale_x_continuous(limits = c(0,100))
@@ -154,6 +148,7 @@ laborgender%>%
 womenedu2 <- laborgender %>%
   filter(Year == "2015", Statistic == "Labour force participation - Female",
          EducationLevel == "Ratio of girls to boys in secondary education")%>%
+  distinct()%>%
   select(GenderRatio, Rates)
   cor.test(womenedu2$GenderRatio, womenedu2$Rates, method = "spearman")
 ```
