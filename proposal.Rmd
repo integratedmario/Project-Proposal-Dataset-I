@@ -65,8 +65,26 @@ womenedu <- womenedu %>%
   select(-"Gender Ratio Temp")
 ```
 
+```{r data-cleanup-ineq}
+genderineq <- read.csv(file = 'data/GenderIneq.csv')%>%
+  slice(6:189)%>%
+  select(X.1, X.2, SDG3.7, SDG3.1)
 
-```{r data-cleanup-joined}
+ineq <- as.numeric(genderineq$X.2)
+birthr <- as.numeric(genderineq$SDG3.7)
+mortalr <- as.numeric(genderineq$SDG3.1)
+
+genderineq <- genderineq%>%
+  mutate(GenderIneqIndex = ineq, TeenBirthRate = birthr,
+         MaternalMortality = mortalr)%>%
+  select(-X.2, -SDG3.7, -SDG3.1)
+
+names(genderineq)[names(genderineq) == "X.1"] <- "Region"
+```
+
+
+
+```{r data-cleanup-joined-1}
 prop <- as.numeric(laborngovt$"Proportion of Women in Govt")
 laborngovt <- laborngovt%>%
   mutate("PropOfWomen" = prop)%>%
@@ -75,18 +93,27 @@ laborngovt <- laborngovt%>%
 laborgender <- right_join(laborngovt, womenedu)%>%
   view()
 ```
+
+```{r final-data-cleanup}
+laborgender <- left_join(laborgender, genderineq)%>%
+  view()
+```
+
 ```{r dataset-sharpener}
-laborgender %>%
-  filter(EducationLevel == "Ratio of girls to boys in tertiary education",
-         Year == "2015")
+laborgender <- laborgender%>%
+  filter(Statistic != "Unemployment rate - Total",
+         Statistic != "Unemployment rate - Male",
+         Statistic != "Unemployment rate - Female")%>%
+  select(-Type)%>%
+  view()
 ```
 
 
 
 ```{r women-particip, fig.width = 9, fig.height = 8}
-laborngovt %>%
+laborgender %>%
   filter(Statistic == "Labour force participation - Female", Year == "2015")%>%
-  slice(1:22)%>%
+  slice(1:32)%>%
   ggplot(mapping = aes(x = Region, y = Rates))+
   geom_bar(stat = "identity", fill = "#521173")+
   coord_flip()+
@@ -113,7 +140,7 @@ laborgender%>%
        y= "Labor force participation of women (%)")
 ```
 ```{r only-labor}
-laborngovt%>%
+laborgender%>%
   filter(Year == "2015", 
         Statistic == "Labour force participation - Female")%>%
   slice(23:n())%>%
